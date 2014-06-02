@@ -64,7 +64,7 @@ class Triangle : public Geometry
                           real_t beta,
                           real_t gamma);
     
-	    };
+};
 
 
 } /* _462 */

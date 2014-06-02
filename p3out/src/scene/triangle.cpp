@@ -1,3 +1,10 @@
+/*! -------------------------------------------------------------- 
+ * @file   triangle.cpp
+ *
+ * @author Ammar Husain (ahusain@nrec.ri.cmu.edu)
+ * @date   06/01/2014
+ * ---------------------------------------------------------------- 
+ */
 /**
  * @file triangle.cpp
  * @brief Function definitions for the Triangle class.
@@ -10,17 +17,17 @@
 
 namespace _462 {
 
-    Triangle::Triangle()
-    {
+Triangle::Triangle()
+{
 	vertices[0].material = 0;
 	vertices[1].material = 0;
 	vertices[2].material = 0;
-    }
+}
 
-    Triangle::~Triangle() { }
+Triangle::~Triangle() { }
 
-    void Triangle::render() const
-    {
+void Triangle::render() const
+{
 	bool materials_nonnull = true;
 	for ( int i = 0; i < 3; ++i )
 	    materials_nonnull = materials_nonnull && vertices[i].material;
@@ -50,8 +57,8 @@ namespace _462 {
     }
 
     /* - Ammar Husain - */
-    Intersection* Triangle::hasHit( Ray& r )
-    {
+Intersection* Triangle::hasHit( Ray& r )
+{
 	
 	/// instantiate an intersection container
 	TriangleIntersection* interParams = new TriangleIntersection();
@@ -66,7 +73,7 @@ namespace _462 {
 	Vector4 t_r_d = invMat*d_tmp;
 
 	Ray t_r( Vector3( t_r_e.x, t_r_e.y, t_r_e.z ),
-		 Vector3( t_r_d.x, t_r_d.y, t_r_d.z ) );
+             Vector3( t_r_d.x, t_r_d.y, t_r_d.z ) );
 	  
 	/// pull the individual vertices
 	Vertex v_a = vertices[0];
@@ -74,7 +81,7 @@ namespace _462 {
 	Vertex v_c = vertices[2];
 
 	// set up cramers rule solution to system of equation
-	// refer the Shirley Text - 4.4.2 (2nd ed
+	// refer the Shirley Text - 10.3.2 (2nd ed
 	// beta column
 	double a = v_a.position.x - v_b.position.x;
 	double b = v_a.position.y - v_b.position.y;
@@ -99,7 +106,7 @@ namespace _462 {
 	real_t jc_minus_al = (j*c) - (a*l);
 	real_t bl_minus_kc = (b*l) - (k*c);
 	
-        // determinant
+    // determinant
 	real_t det =
 	    (a*ei_minus_hf) + (b*gf_minus_di) + (c*dh_minus_eg);
 
@@ -126,7 +133,7 @@ namespace _462 {
 	    ((j*ei_minus_hf) + (k*gf_minus_di) + (l*dh_minus_eg)) / det;
 
 	// check for a sane beta
-	if ( (beta < 0.0) && (beta + gamma > 1) )
+	if ( (beta < 0.0) || (beta + gamma > 1) )
 	    goto final;
 	
 	
@@ -134,20 +141,24 @@ namespace _462 {
 	interParams->t = t;
 	interParams->beta = beta;
 	interParams->gamma = gamma;
+    /// save the untransformed ray
+    interParams->ray = r;
+    
 	goto final;
 
 	/// cast the derived object within base object
-      final: return static_cast<Intersection*>(interParams);
-    }
+  final: return static_cast<Intersection*>(interParams);
+}
 
-    void Triangle::populateHit( Intersection* hit )
-    {
-	/// sanity check
+void Triangle::populateHit( Intersection* hit )
+{
+
+    /// sanity check
 	if (hit == NULL)
 	{
 	    
 	    std::cerr << "Invalid Intersection object passed! WTF!!"
-		      << std::endl;
+                  << std::endl;
 	    assert(0);
 	}
 
@@ -168,35 +179,38 @@ namespace _462 {
 	    (thisHit->beta*v_b.position) +
 	    (thisHit->gamma*v_c.position);
 
+    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+    hit->int_point.position = hit->ray.e + (hit->ray.d*hit->t);
+    
 	Vector3 localNormal = (alpha*v_a.normal) +
 	    (thisHit->beta*v_b.normal) +
 	    (thisHit->gamma*v_c.normal);
 
 	Matrix4 normalMatrix;
 	transpose( &normalMatrix, invMat );
-	hit->int_point.normal = normalize(
-	    multiplyVector(normalMatrix,localNormal)
-	    );
+	hit->int_point.normal =
+        normalize(multiplyVector(normalMatrix,localNormal));
 
+    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+    //hit->int_point.normal = normalize(localNormal);
+    
+    
 	hit->int_point.tex_coord = (alpha*v_a.tex_coord) +
 	    (thisHit->beta*v_b.tex_coord) +
 	    (thisHit->gamma*v_c.tex_coord);
 
-	// we are sure that the raytracer will not manipulate the material
-	//hit->int_material = const_cast<Material*>( v_a.material );
-
 	InterpolateMaterials(hit, alpha, thisHit->beta, thisHit->gamma);
 	
 	return;
-    }
+}
 
 
-    void
-    Triangle::InterpolateMaterials (Intersection* hit,
-			  real_t alpha,
-			  real_t beta,
-			  real_t gamma)
-    {
+void
+Triangle::InterpolateMaterials (Intersection* hit,
+                                real_t alpha,
+                                real_t beta,
+                                real_t gamma)
+{
 
 	/// Get the triangle vertices
 	Vertex v_a = vertices[0];
@@ -224,8 +238,49 @@ namespace _462 {
 	    (beta * v_b.material->refractive_index) +
 	    (gamma * v_c.material->refractive_index);
 
-	
-    }
+    int width,height;
+    int pix_x, pix_y;
+
+    /// texture color for vertex a
+    v_a.material->get_texture_size(&width, &height);
+    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+    /// pix_x = hit->int_point.tex_coord.x;
+    /// pix_y = hit->int_point.tex_coord.y;
+    Color3 a_tex =
+        v_a.material->get_texture_pixel(pix_x, pix_y);
+
+    /// texture color for vertex b
+    v_b.material->get_texture_size(&width, &height);
+    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+
+    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+    /// pix_x = hit->int_point.tex_coord.x;
+    // pix_y = hit->int_point.tex_coord.y;
+    Color3 b_tex =
+        v_b.material->get_texture_pixel(pix_x, pix_y);
+
+    /// texture color for vertex c
+    v_c.material->get_texture_size(&width, &height);
+    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+
+    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+    // pix_x = hit->int_point.tex_coord.x;
+    // pix_y = hit->int_point.tex_coord.y;
+    Color3 c_tex =
+        v_c.material->get_texture_pixel(pix_x, pix_y);
+
+    /// interpolate the texture colors
+    hit->int_material.texture =
+        (alpha * a_tex) +
+        (beta * b_tex) +
+        (gamma * c_tex);
+
+    
+}
     
 
     

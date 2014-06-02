@@ -23,6 +23,8 @@ namespace _462 {
 #define NORMAL_OFFSET 2
 #define VERTEX_OFFSET 5
 
+#define PI 3.14159265
+
 static unsigned int Indices[SPHERE_NUM_INDICES];
 static float Vertices[VERTEX_SIZE * SPHERE_NUM_VERTICES];
 
@@ -99,14 +101,133 @@ void Sphere::render() const
 /* - Ammar Husain - */
 Intersection* Sphere::hasHit( Ray& r )
 {
-  //** This function needs to be implemented                                                                           
-  Intersection* garbage = new Intersection();
-  return garbage;
+
+    Intersection* interParams = new Intersection();
+  
+    // transform ray for instancing
+    Vector4 e_tmp(r.e.x, r.e.y, r.e.z, 1);
+    /// invMat is the transformation matrix stored in parent
+    Vector4 t_r_e = invMat*e_tmp;
+    Vector4 d_tmp(r.d.x, r.d.y, r.d.z, 0);
+    Vector4 t_r_d = invMat*d_tmp;
+
+    /// following the naming convention from Shirley text
+    Vector3 e = Vector3( t_r_e.x, t_r_e.y, t_r_e.z );
+    Vector3 d = Vector3( t_r_d.x, t_r_d.y, t_r_d.z );
+    /// for instancing the sphere is placed at (0,0,0)
+    Vector3 c = Vector3(0,0,0);
+
+    Vector3 e_sub_c = e-c;
+
+    
+    /// compute the discriminant
+    real_t discriminant =
+        (pow(dot(d, e_sub_c), 2)) -
+        (dot(d, d)*(dot(e_sub_c, e_sub_c) - (pow(radius, 2))));
+
+    /// declare variables before the jump labels
+    real_t t_1, t_2, t, sqrtDiscriminant;
+    
+    /// check if there is a real solution
+    if (discriminant < 0){
+        /// ray does not hit the sphere
+        goto final;
+    }
+    
+    sqrtDiscriminant = sqrt(discriminant);
+
+    t_1 = (-dot(d,e_sub_c) + sqrtDiscriminant)/ dot(d,d);
+    t_2 = (-dot(d,e_sub_c) - sqrtDiscriminant)/ dot(d,d);
+
+    /// pick the smaller of the two t's
+    /// thats the one entering the sphere; the other is exiting
+    t = t_1;
+    if (t_2 < t_1) 
+        t = t_2;
+
+    ///  check for a sane t
+    if ((t > interParams->t) || (t < interParams->epsilon_t))
+        goto final;
+
+    /// update the intersection structure
+    interParams->t = t;
+
+    /// store the uninstanced ray
+    interParams->ray = r;/// Ray(e, d);
+    
+    
+  final: return interParams;    
+    
 }
 
 void Sphere::populateHit( Intersection* hit )
 {
-  return;
+    /// sanity check
+    if (hit == NULL)
+    {
+        std::cerr << "Invalid Intersection object passed! WTF!"
+                  << std::endl;
+
+        assert(0);
+    }
+
+    /// compute position
+    hit->int_point.position = hit->ray.e + (hit->ray.d*hit->t);
+    /// Shirley Text: unit N = (p-c)/R
+    hit->int_point.normal = (hit->int_point.position - position)/radius;
+    hit->int_point.normal = normalize(hit->int_point.normal);
+    
+    /// hit->int_point.normal =
+    ///     normalize((hit->int_point.position)/radius);
+
+    /// compute texture coordinate on sphere
+    hit->int_point.tex_coord =
+        ComputeSphereTextureCoord(hit->int_point.position);
+    
+    
+    /// populate the material properties
+    hit->int_material.ambient = material->ambient;
+    hit->int_material.diffuse = material->diffuse;
+    hit->int_material.specular = material->specular;
+    hit->int_material.refractive_index = material->refractive_index;
+    /// !!!!---- TODO: compute color of texture
+    // int pix_x, pix_y;
+    // pix_x = hit->int_point.tex_coord.x;
+    // pix_y = hit->int_point.tex_coord.y;
+
+    int width, height;
+    int pix_x, pix_y;
+    material->get_texture_size(&width, &height);
+    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+     
+    hit->int_material.texture = material->get_texture_pixel(pix_x, pix_y);
+    
+    return;
+}
+
+
+/** ----------------------------------------------------------------------
+ * Computes the texture coordinate for point on sphere
+ * Mathematical Details: Shirley 11.2 (2D Texture Mapping)
+ * @param hitPosition 
+ * 
+ * @return 
+ ---------------------------------------------------------------------- */
+Vector2 Sphere::ComputeSphereTextureCoord(Vector3 hitPosition)
+{
+    
+    Vector2 tex_coord;
+    real_t theta = acos((hitPosition.z - position.z)/radius);
+    real_t phi =
+        atan2(hitPosition.y - position.y, hitPosition.x - position.x);
+    if (phi < 0)
+        phi = phi + (2*PI);
+    
+    tex_coord.x = phi/(2*PI);
+    tex_coord.y = (PI - theta)/PI;
+    return tex_coord;
+    
 }
 
 } /* _462 */

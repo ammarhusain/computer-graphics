@@ -70,7 +70,9 @@ bool Raytracer::initialize(Scene* scene, size_t num_samples,
     const SphereLight* lights = scene->get_lights();
 
     // TODO any initialization or precompuation before the trace
-
+    /// increase the number of samples for antialiasing
+    this->num_samples = 50;
+    
     // Num samples = 1, width = 800, height = 600
     return true;
 }
@@ -99,6 +101,7 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
 
     Color3 res = Color3::Black();
 
+    /// !!!!---- TODO: Increase num_samples to get rid of antialiasing
     unsigned int iter;
     for (iter = 0; iter < num_samples; iter++)
     {
@@ -112,8 +115,7 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
         // TODO return the color of the given pixel
         // you don't have to use this stub function if you prefer to
         // write your own version of Raytracer::raytrace.
-    
-	res = ShootRay( scene, r );
+        res += RecursiveRayTrace(scene, r, 0);
     }
 
 
@@ -135,7 +137,6 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
 bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
 {
     // TODO Add any modifications to this algorithm, if needed.
-
     std::cout << "# of -- \n \t meshes = " << scene->num_meshes() 
 	      << " \n \t geometries = " << scene->num_geometries()
 	      << " \n \t materials = " << scene->num_materials()
@@ -205,52 +206,98 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
  * 
  * @return 
  ---------------------------------------------------------------- */
-    Color3 Raytracer::ShootRay( const Scene* scene, Ray& r )
-    {
+Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth)
+{
 
+    /// !!!!---- TODO: Need to account for refraction
+    
+    /// get background color
+    Color3 backgroundColor = scene->background_color;
+
+    
 	// iterate through all the geometries to find a hit
 	Intersection* closestGeomIntersection = new Intersection();
-	// ray intersection test
-	int closestGeom_ind = IntersectGeometry(scene,
-						r,
-						closestGeomIntersection);
 
-	Color3 res = scene->background_color;
+    /// check if ray hits an object in scene
+	int closestGeom_ind = RayCast(scene,
+                                  r,
+                                  closestGeomIntersection);
+
+    Color3 finalColor(0.0, 0.0, 0.0);
+    
+    /// instantiate the sources of color
+    Color3 lightContribution(0.0, 0.0, 0.0),
+        reflectionContribution(0.0, 0.0, 0.0);
+    
 
 	// request geometry for color
 	if( closestGeom_ind >= 0 ) {
-	    // fetch geometries in the scene
-	    Geometry* const* sceneGeometries = scene->get_geometries();
 
-	    // get the details of the ray intersection to geometry
-	    sceneGeometries[ closestGeom_ind ]->populateHit( closestGeomIntersection );
-    
-	    // compute shading color
-	    res = shader( scene, closestGeomIntersection );
+        /// shadow rays => visibility of light
+        lightContribution =
+            SampleShadowRays(scene, closestGeomIntersection);
+        /*
+        std::cout << "G: " << closestGeom_ind
+                  << "  Final Light: " << lightContribution
+                  << "\t Material diffuse: "
+                  << closestGeomIntersection->int_material.diffuse
+                  << std::endl;
+        */
+        /// create a reflected ray
+        Vector3 intersectionNormal =
+            closestGeomIntersection->int_point.normal;
+        Vector3 intersectionPoint =
+            closestGeomIntersection->int_point.position;
+        Vector3 reflectionVector =
+            r.d - 2*dot(r.d, intersectionNormal)*intersectionNormal;
+        Ray reflectedRay(intersectionPoint, reflectionVector);
 
+        /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+        /*
+        /// check for recursion termination condition
+        if (depth < 3) {
+            reflectionContribution =
+                RecursiveRayTrace(scene, reflectedRay, depth+1);
+            /// multiply this with specular color of material and texture color
+            reflectionContribution =
+                reflectionContribution *
+                closestGeomIntersection->int_material.specular *
+                closestGeomIntersection->int_material.texture;    
+        }
+        */
+        /// add up the various colors
+        finalColor = lightContribution + reflectionContribution;
 	}
+    else {
+        finalColor = backgroundColor;
+    }
+    
 
 	// destroy the intersection object
 	delete closestGeomIntersection;
-	return res;
-    }
+	return finalColor;
+}
 
 
-/** ----------------------------------------------------------------
- * 
+/** ----------------------------------------------------------------------
+ * Computes the contribution of light at the point of intersection
  * 
  * @param scene 
  * @param intersection 
  * 
  * @return 
- ---------------------------------------------------------------- */
-Color3 Raytracer::shader( const Scene* scene, Intersection* intersection )
+ ---------------------------------------------------------------------- */
+Color3
+Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
 {
 
     // sanity check for an instantiated pointer
-    if (intersection == NULL)
+    if (intersection == NULL) {
+        std::cerr << "SAMPLE-SHADOW-RAYS: Passed in a NULL Intersection! WTF!"
+                  << std::endl;
         return Color3::Black();
-        
+    }
+    
     
     // instantitate required diffuse and ambient material/ light colors
     Color3 k_d = intersection->int_material.diffuse;
@@ -260,17 +307,20 @@ Color3 Raytracer::shader( const Scene* scene, Intersection* intersection )
     Color3 t_p = intersection->int_material.texture;
 
     // instantiate the normal vector for the intersection
-    Vector3 normal = intersection->int_point.normal;
-    // instantiate a color accumulator to add light color contributions
-    Color3 lightAccumulator(0.0, 0.0, 0.0);
+    Vector3 normal = normalize(intersection->int_point.normal);
+    /// variable to sum over all light sources
+    Color3 avgLightColor(0.0, 0.0, 0.0);
 
     // fetch all the light sources
     const SphereLight* sceneLights = scene->get_lights();
 
+    int numSamples = 10;
+    
     // iterate through the light sources
-    for ( unsigned int light_ctr = 0; light_ctr < scene->num_lights(); light_ctr++ )
+    for (unsigned int light_ctr = 0;
+         light_ctr < scene->num_lights(); light_ctr++)
     {
-        SphereLight currentLight = sceneLights[ light_ctr ];
+        SphereLight currentLight = sceneLights[light_ctr];
 
         // store color of light
         Color3 c = currentLight.color;
@@ -279,8 +329,12 @@ Color3 Raytracer::shader( const Scene* scene, Intersection* intersection )
         real_t a_l = currentLight.attenuation.linear;
         real_t a_q = currentLight.attenuation.quadratic;
 
+        // instantiate a color accumulator to add light color contributions
+        Color3 lightAccumulator(0.0, 0.0, 0.0);
+
         // monte carlo sampling = 10 samples / light
-        for ( unsigned int sample_ctr = 0; sample_ctr < 10; sample_ctr++ )
+        for (unsigned int sample_ctr = 0;
+             sample_ctr < numSamples; sample_ctr++)
         {
             Vector3 lightSample;
             lightSample.x = random_gaussian();
@@ -293,37 +347,52 @@ Color3 Raytracer::shader( const Scene* scene, Intersection* intersection )
             lightSample = currentLight.radius * lightSample;
             //transform the light sample
             lightSample += currentLight.position;
-
+            
+            Vector3 sampleDirection =
+                normalize(lightSample - intersection->int_point.position);
+            
+            /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+            //lightSample =
+            //    currentLight.position - intersection->int_point.position;
+            
             // instantiate light ray
-            Ray L = Ray( intersection->int_point.position, lightSample );
+            Ray L = Ray(intersection->int_point.position, sampleDirection);
 
             Intersection* lightIntersection = new Intersection();
             // check for obstruction in path to light
-            int intersection_ind = IntersectGeometry( scene,
-                                                      L,
-                                                      lightIntersection );
-            // if the pointer points to a valid intersection container
-            if ( intersection_ind < 0 ) {
-                // light is not blocked by any geomtery
-
-                // compute distance to light source
-                real_t d = length( intersection->int_point.position - lightSample );
-
-                Color3 c_i = c * ( 1 / (a_c + (d*a_l) + (pow(d,2)*a_q)) );
-                real_t normalDotLight = dot( normal, L.d );
-                if ( normalDotLight > 0 )
-                    lightAccumulator += (c_i * k_d * normalDotLight);
-
-            }
+            int intersection_ind = RayCast( scene,
+                                            L,
+                                            lightIntersection );
+            
             // free the intersection container
-            delete lightIntersection;
+            delete lightIntersection; // do not where the light got blocked
 
+            // if the pointer points to a valid intersection container
+            if (intersection_ind >= 0)
+                continue;
+                    
+            // light is not blocked by any geomtery
+            // compute distance to light source
+            real_t d = length(intersection->int_point.position - lightSample);
+
+            Color3 c_i = c * (real_t(1.0) / (a_c + (d*a_l) + (pow(d,2)*a_q)));
+
+            real_t normalDotLight = dot(normal, L.d);
+            if (normalDotLight > 0) {
+                /// sum over all samples sent to a light source
+                lightAccumulator += (c_i * k_d * normalDotLight);
+            }                
+            
         }
+        /// sum over all lights in scene
+        avgLightColor += lightAccumulator*(1.0/(float)numSamples);
     }
-    
+        
     //std::cout << "texture: " << t_p <<std::endl;
-    return t_p*((c_a*k_a) + lightAccumulator);
-
+    /// average over the various lights in the scene
+    Color3 finalLightColor = t_p*((c_a*k_a) + avgLightColor);
+    
+    return finalLightColor;
 }
 
 
@@ -336,7 +405,7 @@ Color3 Raytracer::shader( const Scene* scene, Intersection* intersection )
  * 
  * @return 
  ---------------------------------------------------------------- */
-int Raytracer::IntersectGeometry( const Scene* scene,
+int Raytracer::RayCast( const Scene* scene,
 				  Ray& r, 
 				  Intersection*& closestGeomIntersection )
 {
@@ -346,9 +415,10 @@ int Raytracer::IntersectGeometry( const Scene* scene,
     Geometry* const* sceneGeometries = scene->get_geometries();
 
     // initialize input container if not already done so
-    if (closestGeomIntersection == NULL)
-	closestGeomIntersection = new Intersection();
+    //if (closestGeomIntersection == NULL)
+    //    closestGeomIntersection = new Intersection();
 
+    
     for (unsigned int geom_ctr = 0; geom_ctr < scene->num_geometries(); geom_ctr++)
     {
 	Intersection* currIntersection = sceneGeometries[ geom_ctr ]->hasHit( r );
@@ -362,6 +432,10 @@ int Raytracer::IntersectGeometry( const Scene* scene,
 	    delete currIntersection;
     }
 
+    /// if a valid hit occured => get details of intersection
+    if (closestGeom_ind >= 0)
+        sceneGeometries[closestGeom_ind]->populateHit(closestGeomIntersection);
+    
     return closestGeom_ind;
 }
 

@@ -14,11 +14,11 @@
 
 namespace _462 {
 
-  /**
-   * Class to store intersection parameters
-   */
-  class ModelIntersection : public Intersection
-  {
+/**
+ * Class to store intersection parameters
+ */
+class ModelIntersection : public Intersection
+{
   public: 
     real_t beta;
     real_t gamma;
@@ -27,28 +27,28 @@ namespace _462 {
     // default constructor   
     ModelIntersection() : Intersection() { }
 
-  };
+};
 
-  /**
-   * A mesh of triangles.
-   */
-    class Model : public Geometry
-    {
-    public:
+/**
+ * A mesh of triangles.
+ */
+class Model : public Geometry
+{
+  public:
 
-      const Mesh* mesh;
-      const Material* material;
+    const Mesh* mesh;
+    const Material* material;
 
-      Model();
-      virtual ~Model();
+    Model();
+    virtual ~Model();
 
-      virtual void render() const;
+    virtual void render() const;
 
-      // abstract function to compute hit parameters of a given ray
-      virtual Intersection* hasHit( Ray& r );
-      virtual void populateHit( Intersection* hit );
+    // abstract function to compute hit parameters of a given ray
+    virtual Intersection* hasHit( Ray& r );
+    virtual void populateHit( Intersection* hit );
 
-    };
+};
 
 
 } /* _462 */

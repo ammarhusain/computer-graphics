@@ -103,7 +103,7 @@ Intersection* Model::hasHit( Ray& r )
         // proceed to calculate beta
         real_t beta = ((j*ei_minus_hf) + (k*gf_minus_di) + (l*dh_minus_eg)) / det;
         // check for a sane beta
-        if ( (beta < 0.0) && (beta + gamma > 1) )
+        if ( (beta < 0.0) || (beta + gamma > 1) )
             continue;
 	
         // update this intersection as closest
@@ -164,9 +164,7 @@ void Model::populateHit( Intersection* hit )
     hit->int_point.tex_coord = (alpha*v_a.tex_coord) + 
         (thisHit->beta*v_b.tex_coord) + 
         (thisHit->gamma*v_c.tex_coord);
-
-
-    // we are sure that the raytracer will not manipulate the material
+    
     /// store the material details
     hit->int_material.diffuse = material->diffuse;
     
@@ -175,11 +173,16 @@ void Model::populateHit( Intersection* hit )
     hit->int_material.specular = material->specular;
     
     hit->int_material.refractive_index = material->refractive_index;
-    
-    hit->int_material.texture = material->get_texture_pixel(
-        hit->int_point.tex_coord.x,
-        hit->int_point.tex_coord.y);
 
+    int width, height;
+    int pix_x, pix_y;
+    material->get_texture_size(&width, &height);
+    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+    
+    hit->int_material.texture =
+        material->get_texture_pixel(pix_x, pix_y);
+        
     return;
 
 }

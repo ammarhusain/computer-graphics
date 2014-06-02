@@ -19,45 +19,45 @@
 
 namespace _462 {
 
-    class Scene;
-    class Ray;
-    class Mesh;
-    struct Intersection;
+class Scene;
+class Ray;
+class Mesh;
+struct Intersection;
 
 /*
-    // struct to store intersection parameters                
-    struct TriangleIntersection
-    {
-	real_t beta;
-	real_t gamma;
-	real_t t;
-	real_t epsilon_t;
+// struct to store intersection parameters                
+struct TriangleIntersection
+{
+real_t beta;
+real_t gamma;
+real_t t;
+real_t epsilon_t;
 
-	TriangleIntersection(): t(1000.0), epsilon_t(0.001) {}
-    };
+TriangleIntersection(): t(1000.0), epsilon_t(0.001) {}
+};
 */
 
-    class Raytracer
-    {
+class Raytracer
+{
 
-    public:
+  public:
 
 	Raytracer();
 
 	~Raytracer();
 
 	bool initialize(Scene* scene, size_t num_samples,
-			size_t width, size_t height);
+                    size_t width, size_t height);
 
 	bool raytrace(unsigned char* buffer, real_t* max_time);
 
-    private:
+  private:
 
 	Color3 trace_pixel(const Scene* scene,
-			   size_t x,
-			   size_t y,
-			   size_t width,
-			   size_t height);
+                       size_t x,
+                       size_t y,
+                       size_t width,
+                       size_t height);
 
 	// the scene to trace
 	Scene* scene;
@@ -70,15 +70,15 @@ namespace _462 {
 
 	unsigned int num_samples;
 
-	/* helper functions */
-	Color3 ShootRay( const Scene* scene, Ray& r );
+    /* helper functions */
+    Color3 RecursiveRayTrace(const Scene* scene, Ray& r, int depth);
 
-	Color3 shader( const Scene* scene, Intersection* closestGeomIntersection );
+    Color3 SampleShadowRays(const Scene* scene, Intersection* intersection);
+        
+    int RayCast( const Scene* scene, Ray& r,
+                 Intersection*& closestGeomIntersection );
 
-	int IntersectGeometry( const Scene* scene, Ray& r,
-			       Intersection*& closestGeomIntersection );
-
-    };
+};
 
 } /* _462 */
 

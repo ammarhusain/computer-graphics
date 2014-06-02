@@ -27,6 +27,7 @@ class Intersection
 
 	// populate in ray casting
 	real_t t;
+    /// small offset t to avoid self intersection
 	real_t epsilon_t;
 
 	// populated for closest intersection - 2nd iteration
@@ -60,10 +61,13 @@ class Intersection
     
 	IntersectionPoint int_point;
 	MaterialProperties int_material;
-
+    /// ray of light
+    Ray ray;
+    
+    
 	// default constructor
 	Intersection() : t ( std::numeric_limits<real_t>::infinity() )
-                   , epsilon_t ( 0.01 ) {}
+                   , epsilon_t ( 0.0001 ) {}
     
 };
 

@@ -13,11 +13,11 @@
 
 namespace _462 {
 
-  /**
-   * A sphere, centered on its position with a certain radius.
-   */
-  class Sphere : public Geometry
-  {
+/**
+ * A sphere, centered on its position with a certain radius.
+ */
+class Sphere : public Geometry
+{
   public:
 
     real_t radius;
@@ -27,11 +27,15 @@ namespace _462 {
     virtual ~Sphere();
     virtual void render() const;
 
-    // abstract function to compute hit parameters of a given ray                                   
+    // abstract function to compute hit parameters of a given ray
     virtual Intersection* hasHit( Ray& r );
     virtual void populateHit( Intersection* hit );
 
-  };
+  private:
+    Vector2 ComputeSphereTextureCoord(Vector3 hitPosition);
+    
+        
+};
 
 } /* _462 */
 

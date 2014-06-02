@@ -526,6 +526,11 @@ int main( int argc, char* argv[] )
 
     RaytracerApplication app( opt );
 
+    std::cout << "Attempting to load: "
+              << opt.input_filename
+              << std::endl;
+    
+    
     // load the given scene
     if ( !load_scene( &app.scene, opt.input_filename ) ) {
         std::cout << "Error loading scene "
