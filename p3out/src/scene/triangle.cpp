@@ -174,18 +174,15 @@ void Triangle::populateHit( Intersection* hit )
 	Vertex v_c = vertices[2];
 
 	/// store the hit coordinate in parent structure
-	hit->int_point.position =
-	    (alpha*v_a.position) +
-	    (thisHit->beta*v_b.position) +
-	    (thisHit->gamma*v_c.position);
-
-    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
     hit->int_point.position = hit->ray.e + (hit->ray.d*hit->t);
     
 	Vector3 localNormal = (alpha*v_a.normal) +
 	    (thisHit->beta*v_b.normal) +
 	    (thisHit->gamma*v_c.normal);
 
+    localNormal = normalize(localNormal);
+
+    
 	Matrix4 normalMatrix;
 	transpose( &normalMatrix, invMat );
 	hit->int_point.normal =
@@ -243,33 +240,22 @@ Triangle::InterpolateMaterials (Intersection* hit,
 
     /// texture color for vertex a
     v_a.material->get_texture_size(&width, &height);
-    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
-    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
-    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
-    /// pix_x = hit->int_point.tex_coord.x;
-    /// pix_y = hit->int_point.tex_coord.y;
+    pix_x = (int) fmod(width*hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(height*hit->int_point.tex_coord.y, height);
     Color3 a_tex =
         v_a.material->get_texture_pixel(pix_x, pix_y);
 
     /// texture color for vertex b
     v_b.material->get_texture_size(&width, &height);
-    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
-    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
-
-    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
-    /// pix_x = hit->int_point.tex_coord.x;
-    // pix_y = hit->int_point.tex_coord.y;
+    pix_x = (int) fmod(width*hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(height*hit->int_point.tex_coord.y, height);
     Color3 b_tex =
         v_b.material->get_texture_pixel(pix_x, pix_y);
 
     /// texture color for vertex c
     v_c.material->get_texture_size(&width, &height);
-    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
-    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
-
-    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
-    // pix_x = hit->int_point.tex_coord.x;
-    // pix_y = hit->int_point.tex_coord.y;
+    pix_x = (int) fmod(width*hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(height*hit->int_point.tex_coord.y, height);
     Color3 c_tex =
         v_c.material->get_texture_pixel(pix_x, pix_y);
 
@@ -278,7 +264,6 @@ Triangle::InterpolateMaterials (Intersection* hit,
         (alpha * a_tex) +
         (beta * b_tex) +
         (gamma * c_tex);
-
     
 }
     

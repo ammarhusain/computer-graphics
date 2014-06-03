@@ -5,8 +5,12 @@ Describe any major design decisions and descriptions of your algorithms.
 You should detail anything you think we need to know to understand your code.
 
 Things left to do:
-1) Check if the normals are correct - try the two current normal computations for the sphere and see where the light looks better
+(D) 1) Check if the normals are correct - try the two current normal computations for the sphere and see where the light looks better
 
-2) Make sure the texture computation is correct. Do we modulo by height and widht? for tiling perhaps?
+(D) 2) Make sure the texture computation is correct. Do we modulo by height and widht? for tiling perhaps?
 
 3) Implement transmission rays for refraction.
+
+
+4) Light source may not be positioned right?? There is something shifted in test.scene
+   The cube in cube.scene is not bright enough

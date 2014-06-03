@@ -71,7 +71,7 @@ bool Raytracer::initialize(Scene* scene, size_t num_samples,
 
     // TODO any initialization or precompuation before the trace
     /// increase the number of samples for antialiasing
-    this->num_samples = 50;
+    /// this->num_samples = 50;
     
     // Num samples = 1, width = 800, height = 600
     return true;
@@ -253,7 +253,7 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth)
         Ray reflectedRay(intersectionPoint, reflectionVector);
 
         /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
-        /*
+        /**/
         /// check for recursion termination condition
         if (depth < 3) {
             reflectionContribution =
@@ -264,7 +264,7 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth)
                 closestGeomIntersection->int_material.specular *
                 closestGeomIntersection->int_material.texture;    
         }
-        */
+        /**/
         /// add up the various colors
         finalColor = lightContribution + reflectionContribution;
 	}
@@ -314,7 +314,7 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
     // fetch all the light sources
     const SphereLight* sceneLights = scene->get_lights();
 
-    int numSamples = 10;
+    int numSamples = 100;
     
     // iterate through the light sources
     for (unsigned int light_ctr = 0;
@@ -337,24 +337,24 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
              sample_ctr < numSamples; sample_ctr++)
         {
             Vector3 lightSample;
-            lightSample.x = random_gaussian();
-            lightSample.y = random_gaussian();
-            lightSample.z = random_gaussian();
+            lightSample.x = random_gaussian() - 0.50;
+            lightSample.y = random_gaussian() - 0.50;
+            lightSample.z = random_gaussian() - 0.50;
 
             // normalize the vector
             lightSample = normalize( lightSample );
             // scale the light sample
-            lightSample = currentLight.radius * lightSample;
+            lightSample = (currentLight.radius * lightSample);
             //transform the light sample
             lightSample += currentLight.position;
             
             Vector3 sampleDirection =
                 normalize(lightSample - intersection->int_point.position);
+
             
-            /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
             //lightSample =
             //    currentLight.position - intersection->int_point.position;
-            
+                
             // instantiate light ray
             Ray L = Ray(intersection->int_point.position, sampleDirection);
 

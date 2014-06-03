@@ -139,16 +139,14 @@ void Model::populateHit( Intersection* hit )
     if (mesh == NULL)
         std::cout << "MESH IS NULL!!!" << std::endl;
     
-    MeshTriangle t = mesh->triangles[ thisHit->triangle_id ];
+    MeshTriangle tri = mesh->triangles[ thisHit->triangle_id ];
 
-    MeshVertex v_a = mesh->vertices[ t.vertices[ 0 ] ];
-    MeshVertex v_b = mesh->vertices[ t.vertices[ 1 ] ];
-    MeshVertex v_c = mesh->vertices[ t.vertices[ 2 ] ];
+    MeshVertex v_a = mesh->vertices[ tri.vertices[ 0 ] ];
+    MeshVertex v_b = mesh->vertices[ tri.vertices[ 1 ] ];
+    MeshVertex v_c = mesh->vertices[ tri.vertices[ 2 ] ];
 
     hit->int_point.position =
-        (alpha*v_a.position) + 
-        (thisHit->beta*v_b.position) + 
-        (thisHit->gamma*v_c.position);
+        hit->ray.e + (hit->ray.d*hit->t);
 
     Vector3 localNormal = (alpha*v_a.normal) + 
         (thisHit->beta*v_b.normal) + 
@@ -156,9 +154,8 @@ void Model::populateHit( Intersection* hit )
     
     Matrix4 normalMatrix;
     transpose( &normalMatrix, invMat ); 
-    hit->int_point.normal = normalize(
-        multiplyVector(normalMatrix,localNormal)
-        );
+    hit->int_point.normal =
+        normalize(multiplyVector(normalMatrix,localNormal));
   
     /// compute the texture coordinate
     hit->int_point.tex_coord = (alpha*v_a.tex_coord) + 
@@ -177,12 +174,17 @@ void Model::populateHit( Intersection* hit )
     int width, height;
     int pix_x, pix_y;
     material->get_texture_size(&width, &height);
-    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
-    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+    pix_x = (int) fmod(width*hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(height*hit->int_point.tex_coord.y, height);
     
     hit->int_material.texture =
         material->get_texture_pixel(pix_x, pix_y);
-        
+/*
+    std::cout << "P: " << pix_x << "," << pix_y << " \t" <<width << "," << height << std::endl;
+    
+    std::cout << hit->int_point.tex_coord.x << "," << hit->int_point.tex_coord.y << " mesh color: " << hit->int_material.texture << std::endl; 
+*/
+    
     return;
 
 }

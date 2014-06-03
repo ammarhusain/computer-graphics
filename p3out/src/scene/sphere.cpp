@@ -174,11 +174,9 @@ void Sphere::populateHit( Intersection* hit )
     /// compute position
     hit->int_point.position = hit->ray.e + (hit->ray.d*hit->t);
     /// Shirley Text: unit N = (p-c)/R
-    hit->int_point.normal = (hit->int_point.position - position)/radius;
-    hit->int_point.normal = normalize(hit->int_point.normal);
+    hit->int_point.normal =
+        normalize((hit->int_point.position - position)/radius);
     
-    /// hit->int_point.normal =
-    ///     normalize((hit->int_point.position)/radius);
 
     /// compute texture coordinate on sphere
     hit->int_point.tex_coord =
@@ -190,16 +188,12 @@ void Sphere::populateHit( Intersection* hit )
     hit->int_material.diffuse = material->diffuse;
     hit->int_material.specular = material->specular;
     hit->int_material.refractive_index = material->refractive_index;
-    /// !!!!---- TODO: compute color of texture
-    // int pix_x, pix_y;
-    // pix_x = hit->int_point.tex_coord.x;
-    // pix_y = hit->int_point.tex_coord.y;
 
     int width, height;
     int pix_x, pix_y;
     material->get_texture_size(&width, &height);
-    pix_x = (int) fmod(hit->int_point.tex_coord.x, width);
-    pix_y = (int) fmod(hit->int_point.tex_coord.y, height);
+    pix_x = (int) fmod(width*hit->int_point.tex_coord.x, width);
+    pix_y = (int) fmod(height*hit->int_point.tex_coord.y, height);
      
     hit->int_material.texture = material->get_texture_pixel(pix_x, pix_y);
     
