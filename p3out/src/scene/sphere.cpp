@@ -153,8 +153,8 @@ Intersection* Sphere::hasHit( Ray& r )
     interParams->t = t;
 
     /// store the uninstanced ray
-    interParams->ray = r;/// Ray(e, d);
-    
+    interParams->ray = r;
+    interParams->instanced_ray = Ray(e, d);
     
   final: return interParams;    
     
@@ -176,7 +176,16 @@ void Sphere::populateHit( Intersection* hit )
     /// Shirley Text: unit N = (p-c)/R
     hit->int_point.normal =
         normalize((hit->int_point.position - position)/radius);
-    
+
+    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+    Vector3 localNormal =
+        hit->instanced_ray.e + (hit->instanced_ray.d*hit->t);
+    Matrix4 normalMatrix;
+    transpose( &normalMatrix, invMat );
+
+    hit->int_point.normal =
+        normalize(multiplyVector(normalMatrix,localNormal));
+      
 
     /// compute texture coordinate on sphere
     hit->int_point.tex_coord =

@@ -9,8 +9,12 @@ Things left to do:
 
 (D) 2) Make sure the texture computation is correct. Do we modulo by height and widht? for tiling perhaps?
 
-3) Implement transmission rays for refraction.
+(D) 3) Implement transmission rays for refraction.
 
 
-4) Light source may not be positioned right?? There is something shifted in test.scene
+(D) 4) Light source may not be positioned right?? There is something shifted in test.scene
    The cube in cube.scene is not bright enough
+
+5) Try the normal computation for triangle & mesh using (b-a)x(c-a) and then transformed to world space. May be thats the way to get the normals
+
+6) Figure out a way to test if refraction works?

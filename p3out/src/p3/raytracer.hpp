@@ -17,6 +17,13 @@
 #include "math/random462.hpp"
 //#include "scene/scene.hpp"
 
+#include "scene/scene.hpp"
+#include <utility>
+#include <stack> 
+#include <SDL_timer.h>
+#include <iostream>
+#include <random>
+
 namespace _462 {
 
 class Scene;
@@ -71,13 +78,18 @@ class Raytracer
 	unsigned int num_samples;
 
     /* helper functions */
-    Color3 RecursiveRayTrace(const Scene* scene, Ray& r, int depth);
+    Color3 RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
+                             std::stack<real_t>& refractive_indices);
 
     Color3 SampleShadowRays(const Scene* scene, Intersection* intersection);
         
     int RayCast( const Scene* scene, Ray& r,
                  Intersection*& closestGeomIntersection );
 
+    real_t getFresnelCoefficient(Vector3 incoming,
+                                 Vector3 outgoing, Vector3 normal,
+                                 std::pair<real_t, real_t> r_ind);
+    
 };
 
 } /* _462 */

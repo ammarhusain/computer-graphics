@@ -63,6 +63,7 @@ class Intersection
 	MaterialProperties int_material;
     /// ray of light
     Ray ray;
+    Ray instanced_ray;
     
     
 	// default constructor

@@ -180,7 +180,7 @@ void Triangle::populateHit( Intersection* hit )
 	    (thisHit->beta*v_b.normal) +
 	    (thisHit->gamma*v_c.normal);
 
-    localNormal = normalize(localNormal);
+    //localNormal = normalize(localNormal);
 
     
 	Matrix4 normalMatrix;
