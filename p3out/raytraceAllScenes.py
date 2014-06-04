@@ -2,7 +2,16 @@
 
 import sys
 import subprocess
+import atexit
+import time
 
+def cleanup():
+    process_1.terminate()
+    process_2.terminate()
+    process_3.terminate()
+    print 'Cleaned up!'
+
+atexit.register(cleanup)
 
 process_1 = subprocess.Popen(['./p3',
                               'scenes/cube.scene',
