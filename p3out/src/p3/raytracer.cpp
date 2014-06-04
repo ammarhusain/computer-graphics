@@ -26,7 +26,7 @@ namespace _462 {
 // max number of threads OpenMP can use. Change this if you like.
 #define MAX_THREADS 1
 
-#define ANTI_ALIASING_SAMPLES 25
+#define ANTI_ALIASING_SAMPLES 50
 
 #define MONTE_CARLO_LIGHT_SAMPLES 50
 
