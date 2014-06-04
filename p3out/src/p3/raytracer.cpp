@@ -447,7 +447,14 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
             // instantiate light ray
             Ray L = Ray(intersection->int_point.position, sampleDirection);
 
+            /// compute t till the light intersection
+            real_t t_light = length(lightSample - intersection->int_point.position);
+            
             Intersection* lightIntersection = new Intersection();
+
+            /// set max t that ray is allowed to travel
+            lightIntersection->t = t_light;
+            
             // check for obstruction in path to light
             int intersection_ind = RayCast( scene,
                                             L,

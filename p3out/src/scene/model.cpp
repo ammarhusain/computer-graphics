@@ -148,9 +148,19 @@ void Model::populateHit( Intersection* hit )
     hit->int_point.position =
         hit->ray.e + (hit->ray.d*hit->t);
 
+
+    
+    v_a.normal = normalize(v_a.normal);
+    v_b.normal = normalize(v_b.normal);
+    v_c.normal = normalize(v_c.normal);
+          
     Vector3 localNormal = (alpha*v_a.normal) + 
         (thisHit->beta*v_b.normal) + 
         (thisHit->gamma*v_c.normal);
+    
+    /// localNormal =
+    /// cross(v_b.position - v_a.position, v_c.position - v_a.position);
+    
     
     Matrix4 normalMatrix;
     transpose( &normalMatrix, invMat ); 
