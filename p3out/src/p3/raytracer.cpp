@@ -26,6 +26,10 @@ namespace _462 {
 // max number of threads OpenMP can use. Change this if you like.
 #define MAX_THREADS 1
 
+#define ANTI_ALIASING_SAMPLES 25
+
+#define MONTE_CARLO_LIGHT_SAMPLES 50
+
 static const unsigned STEP_SIZE = 8;
 
 Raytracer::Raytracer()
@@ -72,7 +76,7 @@ bool Raytracer::initialize(Scene* scene, size_t num_samples,
 
     // TODO any initialization or precompuation before the trace
     /// increase the number of samples for antialiasing
-    /// this->num_samples = 50;
+    this->num_samples = ANTI_ALIASING_SAMPLES;
     
     // Num samples = 1, width = 800, height = 600
     return true;
@@ -242,14 +246,7 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
         /// shadow rays => visibility of light
         lightContribution =
             SampleShadowRays(scene, closestGeomIntersection);
-        /*
-        std::cout << "G: " << closestGeom_ind
-                  << "  Final Light: " << lightContribution
-                  << "\t Material diffuse: "
-                  << closestGeomIntersection->int_material.diffuse
-                  << std::endl;
-        */
-        /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+
         /**/
         /// check for recursion termination condition
         if (depth < 3) {
@@ -403,7 +400,7 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
     // fetch all the light sources
     const SphereLight* sceneLights = scene->get_lights();
 
-    int numSamples = 100;
+    int numSamples = MONTE_CARLO_LIGHT_SAMPLES;
     
     // iterate through the light sources
     for (unsigned int light_ctr = 0;
@@ -461,7 +458,8 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
                                             lightIntersection );
             
             // free the intersection container
-            delete lightIntersection; // do not where the light got blocked
+            // do not need to know where the light got blocked
+            delete lightIntersection;
 
             // if the pointer points to a valid intersection container
             if (intersection_ind >= 0)

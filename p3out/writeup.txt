@@ -18,3 +18,5 @@ Things left to do:
 5) Try the normal computation for triangle & mesh using (b-a)x(c-a) and then transformed to world space. May be thats the way to get the normals
 
 6) Figure out a way to test if refraction works?
+
+7) Refractive_indices n and n_t passed to Fresnel function might not be right. Shouldnt you want to check the ray direction to figure out which is which before hand.... What if ray is traveling through glass and entering air....Intersection refr ind will be for glass... Therefore both n and n_t will be the same.. If there is TIR handle this case
