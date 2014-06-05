@@ -9,6 +9,7 @@
  */
 
 #include "raytracer.hpp"
+#include <ctime>
 /*
 #include "scene/scene.hpp"
 
@@ -26,9 +27,9 @@ namespace _462 {
 // max number of threads OpenMP can use. Change this if you like.
 #define MAX_THREADS 1
 
-#define ANTI_ALIASING_SAMPLES 50
+#define ANTI_ALIASING_SAMPLES 5
 
-#define MONTE_CARLO_LIGHT_SAMPLES 50
+#define MONTE_CARLO_LIGHT_SAMPLES 5
 
 static const unsigned STEP_SIZE = 8;
 
@@ -109,6 +110,14 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
     /// stack container to keep track of refractive indices
     std::stack<real_t> refractive_indices;
     refractive_indices.push(scene->refractive_index);        
+
+    /// std::cout << "W: " << width << "\t H: " << height << std::endl;
+    
+    /// std::cout << "Pixel: " << x << " , " << y << std::endl;
+
+    std::clock_t start;
+
+    start = std::clock();
     
     /// !!!!---- TODO: Increase num_samples to get rid of antialiasing
     unsigned int iter;
@@ -121,13 +130,23 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
 
         Ray r = Ray(scene->camera.get_position(), Ray::get_pixel_dir(i, j));
 
+        /// std::cout << "\t sample- " << iter << "\t";
+        
+        
         // TODO return the color of the given pixel
         // you don't have to use this stub function if you prefer to
         // write your own version of Raytracer::raytrace.
         res += RecursiveRayTrace(scene, r, 0, refractive_indices);
+
+        /// std::cout << " " << std::endl;
     }
 
+    double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    
 
+    std::cout << "Pixel: " << x << " , " << y << "\t processing time: " << duration << std::endl;
+    
+    
     return res*(real_t(1)/num_samples);
 }
 
@@ -219,6 +238,9 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
                                     std::stack<real_t>& refractive_indices)
 {
 
+
+    /// std::cout << depth << "\t";
+    
     /// !!!!---- TODO: Need to account for refraction
     
     /// get background color
