@@ -78,8 +78,8 @@ class Raytracer
 	unsigned int num_samples;
 
     /* helper functions */
-    Color3 RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
-                             std::stack<real_t>& refractive_indices);
+    Color3 RecursiveRayTrace(const Scene* scene, Ray r, int depth,
+                             std::stack<real_t> refractive_indices);
 
     Color3 SampleShadowRays(const Scene* scene, Intersection* intersection);
         

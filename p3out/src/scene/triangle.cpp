@@ -272,7 +272,7 @@ Triangle::InterpolateMaterials (Intersection* hit,
         (alpha * a_tex) +
         (beta * b_tex) +
         (gamma * c_tex);
-    
+
 }
     
 

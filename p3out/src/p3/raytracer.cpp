@@ -27,9 +27,11 @@ namespace _462 {
 // max number of threads OpenMP can use. Change this if you like.
 #define MAX_THREADS 1
 
-#define ANTI_ALIASING_SAMPLES 5
+#define ANTI_ALIASING_SAMPLES 1//8
 
-#define MONTE_CARLO_LIGHT_SAMPLES 5
+#define MONTE_CARLO_LIGHT_SAMPLES 1//5
+
+#define PRINT_TIMING 0
 
 static const unsigned STEP_SIZE = 8;
 
@@ -143,8 +145,8 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
 
     double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     
-
-    std::cout << "Pixel: " << x << " , " << y << "\t processing time: " << duration << std::endl;
+    if (PRINT_TIMING)
+        std::cout << "Pixel: " << x << "," << y << "\t processing time: " << duration << std::endl;
     
     
     return res*(real_t(1)/num_samples);
@@ -196,8 +198,6 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
 
         int loop_upper = std::min(current_row + STEP_SIZE, height);
 
-        // This tells OpenMP that this loop can be parallelized.
-        #pragma omp parallel for
         for (int c_row = current_row; c_row < loop_upper; c_row++)
         {
             /*
@@ -209,6 +209,9 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
                 if (c_row % PRINT_INTERVAL == 0)
                     printf("Raytracing (Row %d)\n", c_row);
             }
+            // This tells OpenMP that this loop can be parallelized.
+
+#pragma omp parallel for
 
             for (size_t x = 0; x < width; x++)
             {
@@ -219,6 +222,7 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
             }
         }
     }
+    
 
     if (is_done) printf("Done raytracing!\n");
 
@@ -234,8 +238,8 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
  * 
  * @return 
  ---------------------------------------------------------------- */
-Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
-                                    std::stack<real_t>& refractive_indices)
+Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
+                                    std::stack<real_t> refractive_indices)
 {
 
 
@@ -271,15 +275,15 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
 
         /**/
         /// check for recursion termination condition
-        if (depth < 3) {
+        if (depth < 5) {
             /// REFLECTION COMPONENT
             /// create a reflected ray
             Vector3 intersectionNormal =
-                closestGeomIntersection->int_point.normal;
+                normalize(closestGeomIntersection->int_point.normal); // dont need to normalize
             Vector3 intersectionPoint =
                 closestGeomIntersection->int_point.position;
             Vector3 reflectionVector =
-                normalize(r.d - 2*dot(r.d, intersectionNormal)*intersectionNormal);
+                normalize(r.d - (2*dot(r.d, intersectionNormal)*intersectionNormal));
             Ray reflectedRay(intersectionPoint, reflectionVector);
             
             /// FRESNEL EFFECT
@@ -293,10 +297,26 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
                 real_t n = refractive_indices.top();
                 real_t n_t =
                     closestGeomIntersection->int_material.refractive_index;
+
+                /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+                /**/
+                /// figure out if entering or exiting the medium
+                /// should ideally just be done once: needs to be cleaned out
+                if (dot(incomingDirection, intersectionNormal) < 0)
+                {}/// nothing to do here  
+                else /// exiting dielectric
+                {
+                    /// swap the n and n_t;
+                    real_t tmp;
+                    tmp = n;
+                    n = n_t;
+                    n_t = tmp;
+                }
+                /**/
                 
                 /// compute the refracted ray direction: Shirley 10.7
                 real_t squareRootTerm = 
-                    1 - (pow(n,2)/pow(n_t,2)*(1 - pow(dot(incomingDirection, intersectionNormal),2)));
+                    real_t(1.0) - (pow(n,2)/pow(n_t,2)*(real_t(1.0) - pow(dot(incomingDirection, intersectionNormal),2)));
 
                 /// randomly pick reflection vs refraction
                 if (squareRootTerm >= 0)
@@ -312,6 +332,7 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
                                                      outgoingDirection,
                                                      intersectionNormal,
                                                      std::make_pair(n,n_t));
+
                     /// do a coin toss to figure out which ray to emit
                     real_t unbiased_coin = random_gaussian();
                     /// Probability: reflection = R, refraction = 1-R
@@ -330,10 +351,17 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
                         /// REFRACTION
                         /// entering dielectric
                         if (dot(incomingDirection, intersectionNormal) < 0)
+                        {
+                            //std::cout << "Entering dielectric" << std::endl;
                             refractive_indices.push(n_t);
+                        }
+                        
                         else /// exiting dielectric
+                        {
+                            //std::cout << "Exiting dielectric" << std::endl;
                             refractive_indices.pop();
-
+                        }
+                            
                         //std::cout << "Refracting babay" << std::endl;
                         
                         Ray refractedRay(intersectionPoint, outgoingDirection);
@@ -346,6 +374,7 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray& r, int depth,
                 }
                 /// Total Internal Reflection
                 else {
+                    
                     recursiveContribution =
                         RecursiveRayTrace(scene, reflectedRay,
                                           depth+1, refractive_indices);
@@ -406,7 +435,6 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
         return Color3::Black();
     }
     
-    
     // instantitate required diffuse and ambient material/ light colors
     Color3 k_d = intersection->int_material.diffuse;
     Color3 k_a = intersection->int_material.ambient;
@@ -448,6 +476,9 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
             lightSample.x = random_gaussian() - 0.50;
             lightSample.y = random_gaussian() - 0.50;
             lightSample.z = random_gaussian() - 0.50;
+            lightSample.x = random_gaussian();
+            lightSample.y = random_gaussian();
+            lightSample.z = random_gaussian();
 
             // normalize the vector
             lightSample = normalize( lightSample );
@@ -458,7 +489,6 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
             
             Vector3 sampleDirection =
                 normalize(lightSample - intersection->int_point.position);
-
             
             //lightSample =
             //    currentLight.position - intersection->int_point.position;
@@ -491,21 +521,21 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
             // compute distance to light source
             real_t d = length(intersection->int_point.position - lightSample);
 
-            Color3 c_i = c * (real_t(1.0) / (a_c + (d*a_l) + (pow(d,2)*a_q)));
+            Color3 c_i = c * (real_t(1.0)/(a_c + (d*a_l) + (pow(d,2.0)*a_q)));
 
             real_t normalDotLight = dot(normal, L.d);
             if (normalDotLight > 0) {
                 /// sum over all samples sent to a light source
                 lightAccumulator += (c_i * k_d * normalDotLight);
-            }                
-            
+            }            
         }
         /// sum over all lights in scene
-        avgLightColor += lightAccumulator*(1.0/(float)numSamples);
+        avgLightColor += lightAccumulator*(real_t(1.0)/real_t(numSamples));
     }
-        
-    //std::cout << "texture: " << t_p <<std::endl;
+
     /// average over the various lights in the scene
+    avgLightColor = avgLightColor*(real_t(1.0)/real_t(scene->num_lights()));
+    
     Color3 finalLightColor = t_p*((c_a*k_a) + avgLightColor);
     
     return finalLightColor;
@@ -522,8 +552,8 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
  * @return 
  ---------------------------------------------------------------- */
 int Raytracer::RayCast( const Scene* scene,
-				  Ray& r, 
-				  Intersection*& closestGeomIntersection )
+                        Ray& r, 
+                        Intersection*& closestGeomIntersection )
 {
 
     // initialize closest index in scene geometries
@@ -577,22 +607,33 @@ real_t Raytracer::getFresnelCoefficient(Vector3 incoming,
 
     Vector3 incidenceVector;
     real_t cos_theta;
-    real_t n_t;
+    real_t n_t, n;
+
+    n = r_ind.first;
+    n_t = r_ind.second;
+    cos_theta = dot(incoming, normal);
+    
+    
     
     /// figure out the ray with larger incidence angle
-    if(dot(incoming, normal) > dot(outgoing, normal))
+    if(dot(incoming, normal) < dot(outgoing, normal))
     {
         cos_theta = dot(incoming, normal);
-        n_t = r_ind.first;
     } else {
         cos_theta = dot(outgoing, normal);
-        n_t = r_ind.second;
     }
+    
 
-    real_t R_o = pow(((n_t-1)/(n_t+1)), 2);
+    /// direction does not matter here: take absolute value of angle
+    cos_theta = fabs(cos_theta);
+    
+    real_t R_o = pow(((n_t-n)/(n_t+n)), 2);
 
-    real_t R = R_o + (1-R_o)*pow(1-cos_theta, 5);
-
+    real_t R = R_o + ((1.0-R_o)*pow(1-cos_theta, 5));
+/*
+    std::cout << "R_o:" << R_o << "\tcos:" << cos_theta << "\tpow:"
+              << pow(real_t(1.0-cos_theta), 5) << "\tR:" << R << std::endl;
+*/  
     return R;
     
 }
