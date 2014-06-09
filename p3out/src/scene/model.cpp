@@ -89,19 +89,22 @@ Intersection* Model::hasHit( Ray& r )
         real_t bl_minus_kc = (b*l) - (k*c);
         // determinant
         real_t det = (a*ei_minus_hf) + (b*gf_minus_di) + (c*dh_minus_eg);
-        real_t t = -((f*ak_minus_jb) + (e*jc_minus_al) + (d*bl_minus_kc)) / det;
+        real_t t =
+            -((f*ak_minus_jb) + (e*jc_minus_al) + (d*bl_minus_kc)) / det;
         // check for a sane t
         if ( (t > closestMesh->t) || (t < closestMesh->epsilon_t) )
             continue;
 	    
         // proceed to calculate gamma
-        real_t gamma = ((i*ak_minus_jb) + (h*jc_minus_al) + (g*bl_minus_kc)) / det;
+        real_t gamma =
+            ((i*ak_minus_jb) + (h*jc_minus_al) + (g*bl_minus_kc)) / det;
         // check for a sane gamma
         if ( (gamma < 0.0) || (gamma > 1.0) )
             continue;
 	
         // proceed to calculate beta
-        real_t beta = ((j*ei_minus_hf) + (k*gf_minus_di) + (l*dh_minus_eg)) / det;
+        real_t beta =
+            ((j*ei_minus_hf) + (k*gf_minus_di) + (l*dh_minus_eg)) / det;
         // check for a sane beta
         if ( (beta < 0.0) || (beta + gamma > 1) )
             continue;
@@ -111,8 +114,11 @@ Intersection* Model::hasHit( Ray& r )
         closestMesh->beta = beta;
         closestMesh->gamma = gamma;
         closestMesh->triangle_id = tri_ctr;
-	
+    
     }
+    
+    closestMesh->ray = r;
+    closestMesh->instanced_ray = t_r;
     
     //    std::cout << closest->t << "\t";
     return static_cast<Intersection*>( closestMesh );
@@ -148,25 +154,15 @@ void Model::populateHit( Intersection* hit )
     hit->int_point.position =
         hit->ray.e + (hit->ray.d*hit->t);
 
-
-    
-    v_a.normal = normalize(v_a.normal);
-    v_b.normal = normalize(v_b.normal);
-    v_c.normal = normalize(v_c.normal);
-          
     Vector3 localNormal = (alpha*v_a.normal) + 
         (thisHit->beta*v_b.normal) + 
         (thisHit->gamma*v_c.normal);
-    
-    /// localNormal =
-    /// cross(v_b.position - v_a.position, v_c.position - v_a.position);
-    
     
     Matrix4 normalMatrix;
     transpose( &normalMatrix, invMat ); 
     hit->int_point.normal =
         normalize(multiplyVector(normalMatrix,localNormal));
-  
+
     /// compute the texture coordinate
     hit->int_point.tex_coord = (alpha*v_a.tex_coord) + 
         (thisHit->beta*v_b.tex_coord) + 

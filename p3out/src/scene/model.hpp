@@ -25,7 +25,7 @@ class ModelIntersection : public Intersection
     unsigned int triangle_id;
 
     // default constructor   
-    ModelIntersection() : Intersection() { }
+    ModelIntersection() : Intersection() { triangle_id = -1; }
 
 };
 

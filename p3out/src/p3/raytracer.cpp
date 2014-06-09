@@ -29,7 +29,7 @@ namespace _462 {
 
 #define ANTI_ALIASING_SAMPLES 1//8
 
-#define MONTE_CARLO_LIGHT_SAMPLES 1//5
+#define MONTE_CARLO_LIGHT_SAMPLES 1//50
 
 #define PRINT_TIMING 0
 
@@ -166,6 +166,7 @@ Color3 Raytracer::trace_pixel(const Scene* scene,
  */
 bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
 {
+
     // TODO Add any modifications to this algorithm, if needed.
     std::cout << "# of -- \n \t meshes = " << scene->num_meshes() 
 	      << " \n \t geometries = " << scene->num_geometries()
@@ -242,30 +243,29 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
                                     std::stack<real_t> refractive_indices)
 {
 
-
-    /// std::cout << depth << "\t";
-    
-    /// !!!!---- TODO: Need to account for refraction
-    
     /// get background color
     Color3 backgroundColor = scene->background_color;
-
     
-	// iterate through all the geometries to find a hit
-	Intersection* closestGeomIntersection = new Intersection();
-
     /// check if ray hits an object in scene
-	int closestGeom_ind = RayCast(scene,
-                                  r,
-                                  closestGeomIntersection);
+    Intersection* closestGeomIntersection = RayCast(scene,
+                                                    r);
 
+    int closestGeom_ind = closestGeomIntersection->t;
+    
     Color3 finalColor(0.0, 0.0, 0.0);
     
     /// instantiate the sources of color
     Color3 lightContribution(0.0, 0.0, 0.0),
         recursiveContribution(0.0, 0.0, 0.0);
-    
 
+    /// declare all the recursion variables
+    Vector3 intersectionNormal;
+    Vector3 reflectionVector;
+    Ray reflectedRay, refractedRay;
+    Vector3 incomingDirection, outgoingDirection;
+    real_t n, n_t, R;
+    real_t squareRootTerm;
+        
 	// request geometry for color
 	if( closestGeom_ind >= 0 ) {
 
@@ -275,136 +275,180 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
 
         /**/
         /// check for recursion termination condition
-        if (depth < 5) {
-            /// REFLECTION COMPONENT
-            /// create a reflected ray
-            Vector3 intersectionNormal =
-                normalize(closestGeomIntersection->int_point.normal); // dont need to normalize
-            Vector3 intersectionPoint =
-                closestGeomIntersection->int_point.position;
-            Vector3 reflectionVector =
-                normalize(r.d - (2*dot(r.d, intersectionNormal)*intersectionNormal));
-            Ray reflectedRay(intersectionPoint, reflectionVector);
+        if (depth > 5)
+            goto colorSummation; // no further recursion necessary
+
             
-            /// FRESNEL EFFECT
-            if(closestGeomIntersection->int_material.refractive_index > 0)
-            {
-                Vector3 incomingDirection =
-                    closestGeomIntersection->ray.d;
-                /// normalize incoming ray: just in case
-                incomingDirection = normalize(incomingDirection);
-                
-                real_t n = refractive_indices.top();
-                real_t n_t =
-                    closestGeomIntersection->int_material.refractive_index;
+        /// REFLECTION COMPONENT
+        /// create a reflected ray
+        intersectionNormal =
+            normalize(closestGeomIntersection->int_point.normal); // dont need to normalize
+        
+        reflectionVector =
+            normalize(r.d - (2*dot(r.d, intersectionNormal)*intersectionNormal));
+        reflectedRay.e = closestGeomIntersection->int_point.position;
+        reflectedRay.d = reflectionVector;
 
-                /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
-                /**/
-                /// figure out if entering or exiting the medium
-                /// should ideally just be done once: needs to be cleaned out
-                if (dot(incomingDirection, intersectionNormal) < 0)
-                {}/// nothing to do here  
-                else /// exiting dielectric
-                {
-                    /// swap the n and n_t;
-                    real_t tmp;
-                    tmp = n;
-                    n = n_t;
-                    n_t = tmp;
-                }
-                /**/
-                
-                /// compute the refracted ray direction: Shirley 10.7
-                real_t squareRootTerm = 
-                    real_t(1.0) - (pow(n,2)/pow(n_t,2)*(real_t(1.0) - pow(dot(incomingDirection, intersectionNormal),2)));
+        incomingDirection =
+            normalize(r.d);
 
-                /// randomly pick reflection vs refraction
-                if (squareRootTerm >= 0)
-                {
-                    Vector3 outgoingDirection =
-                        ((n/n_t)*(incomingDirection - intersectionNormal*dot(incomingDirection, intersectionNormal)))
-                        - (intersectionNormal*sqrt(squareRootTerm));
 
-                    /// normalize outgoing ray
-                    outgoingDirection = normalize(outgoingDirection);
-                    
-                    real_t R = getFresnelCoefficient(incomingDirection,
-                                                     outgoingDirection,
-                                                     intersectionNormal,
-                                                     std::make_pair(n,n_t));
-
-                    /// do a coin toss to figure out which ray to emit
-                    real_t unbiased_coin = random_gaussian();
-                    /// Probability: reflection = R, refraction = 1-R
-                    if (unbiased_coin < R) {
-                        /// REFLECTION
-                        recursiveContribution =
-                            RecursiveRayTrace(scene, reflectedRay,
-                                              depth+1, refractive_indices);
-                        /// multiply this with specular color of material and texture color
-                        recursiveContribution =
-                            recursiveContribution *
-                            closestGeomIntersection->int_material.specular *
-                            closestGeomIntersection->int_material.texture;    
-                    }
-                    else {
-                        /// REFRACTION
-                        /// entering dielectric
-                        if (dot(incomingDirection, intersectionNormal) < 0)
-                        {
-                            //std::cout << "Entering dielectric" << std::endl;
-                            refractive_indices.push(n_t);
-                        }
-                        
-                        else /// exiting dielectric
-                        {
-                            //std::cout << "Exiting dielectric" << std::endl;
-                            refractive_indices.pop();
-                        }
-                            
-                        //std::cout << "Refracting babay" << std::endl;
-                        
-                        Ray refractedRay(intersectionPoint, outgoingDirection);
-                        recursiveContribution =
-                            RecursiveRayTrace(scene, refractedRay,
-                                              depth+1, refractive_indices);
-                        
-                    }
-                    
-                }
-                /// Total Internal Reflection
-                else {
-                    
-                    recursiveContribution =
-                        RecursiveRayTrace(scene, reflectedRay,
-                                          depth+1, refractive_indices);
-                    /// multiply this with specular color of material and texture color
-                    recursiveContribution =
-                        recursiveContribution *
-                        closestGeomIntersection->int_material.specular *
-                        closestGeomIntersection->int_material.texture;    
-                }
-
-            } /// Fresnel effect
-            else
-            {
-                recursiveContribution =
-                    RecursiveRayTrace(scene, reflectedRay,
-                                      depth+1, refractive_indices);
-            /// multiply this with specular color of material and texture color
-            recursiveContribution =
-                recursiveContribution *
-                closestGeomIntersection->int_material.specular *
-                closestGeomIntersection->int_material.texture;    
-
-            } /// pure reflection
+/*
+        if (closestGeomIntersection->index == 1)
+        {
             
-            
+            std::cout << "incomingDir: " << incomingDirection
+                  << " normal: " << intersectionNormal
+                  << " reflected: " << reflectionVector
+                  << " n: " << closestGeomIntersection->int_material.refractive_index
+                  << "depth: " << depth
+                  << std::endl;
+                  }
+*/
+
+        /// FRESNEL EFFECT
+        if(closestGeomIntersection->int_material.refractive_index == 0)
+        {
+/*            std::cout << "opaque: " << depth
+                      << " ind: " <<closestGeomIntersection->index
+                      << std::endl;
+*/
+            goto reflection; // opaque object
         }
+        
+        /*
+        sleep(1);
+        */
+        
+        /// check for stack corruption
+        if (refractive_indices.size() == 0)
+        {
+            std::cout << "nothing on stack!" << std::endl;
+            return Color3(0.0,0.0,0.0);//goto colorSummation;
+        }
+        
+
+        n = refractive_indices.top();                
+        n_t =
+            closestGeomIntersection->int_material.refractive_index;
+
+        /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
         /**/
+        /// figure out if entering or exiting the medium
+        /// should ideally just be done once: needs to be cleaned out
+        if (dot(incomingDirection, intersectionNormal) > 0)
+        {
+            std::cout << "exiting: " << depth <<" t: " <<
+                      closestGeomIntersection->t <<std::endl;
+            
+            /// when exiting the top of stack should equal the intersection n
+            if (refractive_indices.top() != n_t){
+                std::cout << "stack does not match material while leaving->"
+                          <<"n: " << refractive_indices.top()
+                          << " n_t: " << n_t << std::endl;
+                std::cout << "Geom_ind: " << closestGeomIntersection->index
+                          << " smb: " << closestGeomIntersection->int_material.specular<<std::endl;
+                sleep(10);
+                
+                return Color3(0.0,0.0,0.0); // stack corrupted
+            } else {
+                std::cout << "matched->"
+                          <<"n: " << refractive_indices.top()
+                          << " n_t: " << n_t << std::endl;    
+            }
+            
+            /// stack 
+            /// exiting dielectric: swap the n and n_t;
+            real_t tmp;
+            tmp = n;
+            n = n_t;
+            n_t = tmp;
+            
+        } /*else {
+                std::cout << "entering->"
+                          <<"n: " << refractive_indices.top()
+                          << " n_t: " << n_t << std::endl;
+        }
+          */
+            
+        
+        /**/
+                
+        /// compute the refracted ray direction: Shirley 10.7
+        squareRootTerm = 
+            real_t(1.0) - ( ( pow(n,2)/pow(n_t,2) )*(real_t(1.0) - pow(dot(incomingDirection, intersectionNormal),2)) );
+
+        /// randomly pick reflection vs refraction
+        if (squareRootTerm < 0){
+            std::cout << "TIR" << std::endl;
+            goto reflection; // Total Internal Reflection
+        }
+        
+        outgoingDirection =
+            ( (n/n_t)*(incomingDirection - intersectionNormal*dot(incomingDirection, intersectionNormal)) )
+            - (intersectionNormal*sqrt(squareRootTerm));
+
+        /*  Ray directions seem to be correct
+        std::cout << "incomingDir: " << incomingDirection
+                  << " normal: " << intersectionNormal
+                  << " outgoing: " << outgoingDirection
+                  << " n: " << n
+                  << " n_t: " << n_t
+                  << std::endl;
+*/      
+        /// normalize outgoing ray
+        //!!outgoingDirection = normalize(outgoingDirection);
+                    
+        R = getFresnelCoefficient(incomingDirection,
+                                  outgoingDirection,
+                                  intersectionNormal,
+                                  std::make_pair(n,n_t));
+
+        /// Probability: reflection = R, refraction = 1-R
+        if (random_gaussian() < R){
+            std::cout << "Fresnel Reflection: " <<R<< std::endl;
+            goto reflection; //Fresnel Reflection
+        }
+
+        std::cout << "Refracting: " <<R<<std::endl;
+        
+        /// REFRACTION
+        /// entering dielectric
+        if (dot(incomingDirection, intersectionNormal) < 0)
+        {
+            refractive_indices.push(n_t);
+            //std::cout << "Entering dielectric:" << refractive_indices.top() << std::endl;
+        }              
+        else /// exiting dielectric
+        {
+            refractive_indices.pop();
+        }
+                            
+        //std::cout << "Stack size is: "
+        //        << refractive_indices.size()<< std::endl;
+                        
+        refractedRay.e = closestGeomIntersection->int_point.position;
+        refractedRay.d = outgoingDirection;
+        
+        recursiveContribution =
+            RecursiveRayTrace(scene, refractedRay,
+                              depth+1, refractive_indices);
+        goto colorSummation;           
+
+      reflection:
+        recursiveContribution =
+            RecursiveRayTrace(scene, reflectedRay,
+                              depth+1, refractive_indices);
+        /// multiply this with specular color of material and texture color
+        recursiveContribution =
+            recursiveContribution *
+            closestGeomIntersection->int_material.specular *
+            closestGeomIntersection->int_material.texture;    
+
+      colorSummation:
         /// add up the various colors
         finalColor = lightContribution + recursiveContribution;
-	}
+    }
     else {
         finalColor = backgroundColor;
     }
@@ -425,9 +469,9 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
  * @return 
  ---------------------------------------------------------------------- */
 Color3
-Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
+Raytracer::SampleShadowRays(const Scene* scene, const Intersection* intersection)
 {
-
+ 
     // sanity check for an instantiated pointer
     if (intersection == NULL) {
         std::cerr << "SAMPLE-SHADOW-RAYS: Passed in a NULL Intersection! WTF!"
@@ -443,7 +487,7 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
     Color3 t_p = intersection->int_material.texture;
 
     // instantiate the normal vector for the intersection
-    Vector3 normal = normalize(intersection->int_point.normal);
+    Vector3 normal = intersection->int_point.normal;
     /// variable to sum over all light sources
     Color3 avgLightColor(0.0, 0.0, 0.0);
 
@@ -476,9 +520,9 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
             lightSample.x = random_gaussian() - 0.50;
             lightSample.y = random_gaussian() - 0.50;
             lightSample.z = random_gaussian() - 0.50;
-            lightSample.x = random_gaussian();
-            lightSample.y = random_gaussian();
-            lightSample.z = random_gaussian();
+            /// lightSample.x = random_gaussian();
+            /// lightSample.y = random_gaussian();
+            /// lightSample.z = random_gaussian();
 
             // normalize the vector
             lightSample = normalize( lightSample );
@@ -497,29 +541,37 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
             Ray L = Ray(intersection->int_point.position, sampleDirection);
 
             /// compute t till the light intersection
-            real_t t_light = length(lightSample - intersection->int_point.position);
-            
-            Intersection* lightIntersection = new Intersection();
-
-            /// set max t that ray is allowed to travel
-            lightIntersection->t = t_light;
+            real_t t_light =
+                length(lightSample - intersection->int_point.position);
             
             // check for obstruction in path to light
-            int intersection_ind = RayCast( scene,
-                                            L,
-                                            lightIntersection );
+            Intersection* lightIntersection = RayCast(scene,
+                                                      L,
+                                                      t_light);
+            
+            int intersection_ind = lightIntersection->index;
+
+            /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
+            /*
+            if ( (intersection->index == 2) && (intersection_ind >= 0) )
+                std::cout << "no light, intersected with: "
+                          << intersection_ind 
+                          << " after t: " << lightIntersection->t << std::endl;
+            */
             
             // free the intersection container
             // do not need to know where the light got blocked
-            delete lightIntersection;
+            if (lightIntersection != NULL)
+                delete lightIntersection;
 
+            
             // if the pointer points to a valid intersection container
             if (intersection_ind >= 0)
                 continue;
                     
             // light is not blocked by any geomtery
             // compute distance to light source
-            real_t d = length(intersection->int_point.position - lightSample);
+            real_t d = t_light;
 
             Color3 c_i = c * (real_t(1.0)/(a_c + (d*a_l) + (pow(d,2.0)*a_q)));
 
@@ -543,27 +595,26 @@ Raytracer::SampleShadowRays(const Scene* scene, Intersection* intersection)
 
 
 /** ----------------------------------------------------------------
- * 
- * 
+ * Iterates through the list of geometries to find a hit
+ * Onus of deleting the returned pointer object lies on the caller
  * @param scene 
  * @param r 
  * @param closestGeomIntersection 
  * 
  * @return 
  ---------------------------------------------------------------- */
-int Raytracer::RayCast( const Scene* scene,
-                        Ray& r, 
-                        Intersection*& closestGeomIntersection )
+Intersection* Raytracer::RayCast( const Scene* scene,
+                        Ray r, 
+                        real_t t_desired)
 {
 
-    // initialize closest index in scene geometries
-    int closestGeom_ind = -1;
+    /// get scene geometries
     Geometry* const* sceneGeometries = scene->get_geometries();
 
-    // initialize input container if not already done so
-    //if (closestGeomIntersection == NULL)
-    //    closestGeomIntersection = new Intersection();
-
+    Intersection* closestGeomIntersection = new Intersection();
+    /// check if the ray needs to be a certain length
+    if (t_desired > 0)
+        closestGeomIntersection->t = t_desired;
     
     for (unsigned int geom_ctr = 0; geom_ctr < scene->num_geometries(); geom_ctr++)
     {
@@ -572,17 +623,17 @@ int Raytracer::RayCast( const Scene* scene,
 	if (currIntersection->t < closestGeomIntersection->t) {
 	    delete closestGeomIntersection;
 	    closestGeomIntersection = currIntersection;
-	    closestGeom_ind = geom_ctr;
+	    closestGeomIntersection->index = geom_ctr;
 	}
 	else
 	    delete currIntersection;
     }
 
     /// if a valid hit occured => get details of intersection
-    if (closestGeom_ind >= 0)
-        sceneGeometries[closestGeom_ind]->populateHit(closestGeomIntersection);
+    if (closestGeomIntersection->index >= 0)
+        sceneGeometries[closestGeomIntersection->index]->populateHit(closestGeomIntersection);
     
-    return closestGeom_ind;
+    return closestGeomIntersection;
 }
 
 
@@ -629,7 +680,7 @@ real_t Raytracer::getFresnelCoefficient(Vector3 incoming,
     
     real_t R_o = pow(((n_t-n)/(n_t+n)), 2);
 
-    real_t R = R_o + ((1.0-R_o)*pow(1-cos_theta, 5));
+    real_t R = R_o + ((1.0-R_o)*pow(1.0-cos_theta, 5));
 /*
     std::cout << "R_o:" << R_o << "\tcos:" << cos_theta << "\tpow:"
               << pow(real_t(1.0-cos_theta), 5) << "\tR:" << R << std::endl;

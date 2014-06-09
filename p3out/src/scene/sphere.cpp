@@ -173,11 +173,7 @@ void Sphere::populateHit( Intersection* hit )
 
     /// compute position
     hit->int_point.position = hit->ray.e + (hit->ray.d*hit->t);
-    /// Shirley Text: unit N = (p-c)/R
-    hit->int_point.normal =
-        normalize((hit->int_point.position - position)/radius);
 
-    /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
     Vector3 localNormal =
         hit->instanced_ray.e + (hit->instanced_ray.d*hit->t);
     Matrix4 normalMatrix;

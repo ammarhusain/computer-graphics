@@ -29,7 +29,9 @@ class Intersection
 	real_t t;
     /// small offset t to avoid self intersection
 	real_t epsilon_t;
-
+    /// index of closest geometry
+    int index;
+    
 	// populated for closest intersection - 2nd iteration
 	struct IntersectionPoint
     {
@@ -68,7 +70,7 @@ class Intersection
     
 	// default constructor
 	Intersection() : t ( std::numeric_limits<real_t>::infinity() )
-                   , epsilon_t ( 0.0001 ) {}
+                   , epsilon_t (0.001), index(-1) {}
     
 };
 
