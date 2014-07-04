@@ -36,8 +36,8 @@ struct Photon
 
     /// default constructor
     Photon() { nodeFlag = false; }
+
     
-        
     /// returns number of dimensions for data point
     static uint numberDimensions () { return 3; }
 
@@ -68,9 +68,25 @@ struct Photon
     real_t euclidean_squared(const Vector3& point);
 
     real_t position(uint dimension);
-        
+
+
+    
 };
 
+
+
+/** ----------------------------------------------------------------------
+ * Overloaded ostream operators to aid in printing Photons
+ * 
+ --------------------------------------------------------------------- */
+std::ostream& operator<<(std::ostream &out, const Photon &p);
+
+std::ostream& operator<<(std::ostream &out,
+                         const std::vector<Photon> &p);
+    
+/* ------------------------------------------------------------------- */ 
+    
+        
 
 /** -------------------------------------------------------------- 
  * @class  KdTree
@@ -118,11 +134,21 @@ class KdTree
         /// recursively build the tree
         this->recursiveTree (allNodes, 0, 0);
 
+        /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
         /// iterate through and print the nodes in tree
-        for (int i =0; i < _nodeTree.size(); i++)
-            std::cout << "Tree index: " << i
-                      << " point: " << _nodeTree[i].m_position
-                      << std::endl;        
+        std::cout << _nodeTree << std::endl;
+
+        Vector3 point;
+        point.x = 7;
+        point.y = 1;
+        point.z = 0;
+
+        std::vector<Node> neighbors = nearestNeighborSearch(point, 2);
+
+        std::cout << "Closest Nodes to Point:  " << point << "\n" << neighbors;
+        
+        
+        
     }
 
 
@@ -140,11 +166,18 @@ class KdTree
     std::vector<Node> nearestNeighborSearch(Vector3 point, uint k)
     {
 
-        std::vector<Node> list;
+        std::vector< std::pair<Node, real_t> > list;
 
-        recursiveSearch(point,k, list, 0, 0);
+        recursiveSearch(point, k, list, 0, 0);
+
+        /// allocate a container for closest nodes
+        std::vector<Node> neighbors(list.size());
+
+        /// strip out the paired distances and return the nodes
+        for (uint i = 0; i < list.size(); i++)
+            neighbors[i] = list[i].first;
         
-        
+        return neighbors;
 
     }
     
@@ -286,8 +319,7 @@ class KdTree
                      std::pair<Node, real_t> candidate)
     {
         list.push_back(candidate);
-        std::sort(list.begin(), list.end(), KdTree::listCompare);
-        
+        std::sort(list.begin(), list.end(), listCompare);        
     }
     
 
@@ -301,7 +333,7 @@ class KdTree
      * 
      * @return 
      ---------------------------------------------------------------------- */
-    bool listCompare (std::pair<Node, real_t> a, std::pair<Node, real_t> b)
+    static bool listCompare (std::pair<Node, real_t> a, std::pair<Node, real_t> b)
     {
         return (a.second < b.second);
     }

@@ -57,19 +57,73 @@ real_t Photon::distance_normal(const Vector3& point, uint dimension)
 }
 
 
+/** ----------------------------------------------------------------------
+ * 
+ * 
+ * @author: Ammar Husain <ahusain@nrec.ri.cmu.edu>
+ * @date 07/04/2014 
+ * @param point 
+ * 
+ * @return 
+ ---------------------------------------------------------------------- */
 real_t Photon::euclidean_squared(const Vector3& point)
 {
     return squared_length(point - this->m_position);
 }
 
 
+/** ----------------------------------------------------------------------
+ * 
+ * 
+ * @author: Ammar Husain <ahusain@nrec.ri.cmu.edu>
+ * @date 07/04/2014 
+ * @param dimension 
+ * 
+ * @return 
+ ---------------------------------------------------------------------- */
 real_t Photon::position(uint dimension)
 {
     return this->m_position[dimension];
 }
 
 
+/** ----------------------------------------------------------------------
+ *
+ *
+ * @author Ammar Husain <ahusain@nrec.ri.cmu.edu>
+ * @date 07/04/2014
+ * @param out
+ * @param p
+ *
+ * @return
+ ---------------------------------------------------------------------- */
+std::ostream& operator<<(std::ostream &out, const Photon &p)
+{
+    return out << "Position: " << p.m_position ;
+}
 
+
+/** ----------------------------------------------------------------------
+ * 
+ * 
+ * @author: Ammar Husain <ahusain@nrec.ri.cmu.edu>
+ * @date 07/04/2014 
+ * @param out 
+ * @param p 
+ * 
+ * @return 
+ ---------------------------------------------------------------------- */
+std::ostream& operator<<(std::ostream &out,
+                                const std::vector<Photon> &p)
+{
+
+    for (uint i = 0; i < p.size(); i++)
+        std::cout << "index: " << i << "\t"
+                  << p[i] << "\n --------" << std::endl;
+
+    return out;
+}
+        
 
 } /* _462 */
 
