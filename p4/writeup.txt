@@ -1,0 +1,22 @@
+
+Describe the required features you have implemented, and which you have not.
+if you have missing features, be sure to explain how much you accomplished.
+Describe any major design decisions and descriptions of your algorithms.
+You should detail anything you think we need to know to understand your code.
+
+Things left to do:
+(D) 1) Check if the normals are correct - try the two current normal computations for the sphere and see where the light looks better
+
+(D) 2) Make sure the texture computation is correct. Do we modulo by height and widht? for tiling perhaps?
+
+(D) 3) Implement transmission rays for refraction.
+
+
+(D) 4) Light source may not be positioned right?? There is something shifted in test.scene
+   The cube in cube.scene is not bright enough
+
+(D) 5) Try the normal computation for triangle & mesh using (b-a)x(c-a) and then transformed to world space. May be thats the way to get the normals
+
+6) Figure out a way to test if refraction works?
+
+7) Refractive_indices n and n_t passed to Fresnel function might not be right. Shouldnt you want to check the ray direction to figure out which is which before hand.... What if ray is traveling through glass and entering air....Intersection refr ind will be for glass... Therefore both n and n_t will be the same.. If there is TIR handle this case

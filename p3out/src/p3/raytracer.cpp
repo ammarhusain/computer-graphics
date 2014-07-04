@@ -25,13 +25,13 @@
 namespace _462 {
 
 // max number of threads OpenMP can use. Change this if you like.
-#define MAX_THREADS 1
+#define MAX_THREADS 8
 
-#define ANTI_ALIASING_SAMPLES 1//8
+#define ANTI_ALIASING_SAMPLES 8
 
-#define MONTE_CARLO_LIGHT_SAMPLES 1//50
+#define MONTE_CARLO_LIGHT_SAMPLES 10//50
 
-#define PRINT_TIMING 0
+#define PRINT_TIMING 1
 
 static const unsigned STEP_SIZE = 8;
 
@@ -283,14 +283,15 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
         /// create a reflected ray
         intersectionNormal =
             normalize(closestGeomIntersection->int_point.normal); // dont need to normalize
-        
-        reflectionVector =
-            normalize(r.d - (2*dot(r.d, intersectionNormal)*intersectionNormal));
-        reflectedRay.e = closestGeomIntersection->int_point.position;
-        reflectedRay.d = reflectionVector;
 
         incomingDirection =
             normalize(r.d);
+
+
+        reflectionVector =
+            normalize(incomingDirection - (2*dot(incomingDirection, intersectionNormal)*intersectionNormal));
+        reflectedRay.e = closestGeomIntersection->int_point.position;
+        reflectedRay.d = reflectionVector;
 
 
 /*
@@ -308,17 +309,8 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
 
         /// FRESNEL EFFECT
         if(closestGeomIntersection->int_material.refractive_index == 0)
-        {
-/*            std::cout << "opaque: " << depth
-                      << " ind: " <<closestGeomIntersection->index
-                      << std::endl;
-*/
             goto reflection; // opaque object
-        }
-        
-        /*
-        sleep(1);
-        */
+
         
         /// check for stack corruption
         if (refractive_indices.size() == 0)
@@ -332,55 +324,51 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
         n_t =
             closestGeomIntersection->int_material.refractive_index;
 
-        /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- ///
-        /**/
         /// figure out if entering or exiting the medium
         /// should ideally just be done once: needs to be cleaned out
         if (dot(incomingDirection, intersectionNormal) > 0)
         {
-            std::cout << "exiting: " << depth <<" t: " <<
-                      closestGeomIntersection->t <<std::endl;
+
+            /// if ray is exiting compute the reflection vector by flipping the normal
+            Vector3 flippedNormal = real_t(-1.0)*intersectionNormal;
             
-            /// when exiting the top of stack should equal the intersection n
-            if (refractive_indices.top() != n_t){
-                std::cout << "stack does not match material while leaving->"
-                          <<"n: " << refractive_indices.top()
-                          << " n_t: " << n_t << std::endl;
-                std::cout << "Geom_ind: " << closestGeomIntersection->index
-                          << " smb: " << closestGeomIntersection->int_material.specular<<std::endl;
-                sleep(10);
-                
-                return Color3(0.0,0.0,0.0); // stack corrupted
-            } else {
-                std::cout << "matched->"
-                          <<"n: " << refractive_indices.top()
-                          << " n_t: " << n_t << std::endl;    
-            }
-            
-            /// stack 
-            /// exiting dielectric: swap the n and n_t;
-            real_t tmp;
-            tmp = n;
-            n = n_t;
-            n_t = tmp;
-            
-        } /*else {
-                std::cout << "entering->"
-                          <<"n: " << refractive_indices.top()
-                          << " n_t: " << n_t << std::endl;
-        }
-          */
-            
+            reflectionVector =
+                normalize(incomingDirection - (2*dot(incomingDirection, flippedNormal)*flippedNormal));
+            reflectedRay.e = closestGeomIntersection->int_point.position;
+            reflectedRay.d = reflectionVector;
         
-        /**/
+            
+            if ((n != n_t)||(refractive_indices.size() < 2))
+            {
+                /// stack has gotten corrupted
+                /// the last element in stack should be the material exiting
+                /// the one below that is the previously traversed material
+                std::cout << "exiting: " 
+                          << " stack size: " << refractive_indices.size()
+                          <<" n: " << refractive_indices.top()
+                          << " n_t: " << n_t << std::endl; 
+
+                return Color3(0.0,0.0,0.0);//goto colorSummation;
+            }
+
+            real_t tmp = refractive_indices.top();
+            /// remove the top most element we were travelling through
+            refractive_indices.pop();
+            /// take the refractive index for element we will be returning to
+            n_t = refractive_indices.top();
+
+            /// place the popped element back
+            /// it will be removed if we actually end up refracting
+            refractive_indices.push(tmp);
                 
+        }
+        
         /// compute the refracted ray direction: Shirley 10.7
         squareRootTerm = 
             real_t(1.0) - ( ( pow(n,2)/pow(n_t,2) )*(real_t(1.0) - pow(dot(incomingDirection, intersectionNormal),2)) );
 
         /// randomly pick reflection vs refraction
         if (squareRootTerm < 0){
-            std::cout << "TIR" << std::endl;
             goto reflection; // Total Internal Reflection
         }
         
@@ -397,7 +385,7 @@ Color3 Raytracer::RecursiveRayTrace(const Scene* scene, Ray r, int depth,
                   << std::endl;
 */      
         /// normalize outgoing ray
-        //!!outgoingDirection = normalize(outgoingDirection);
+        outgoingDirection = normalize(outgoingDirection);
                     
         R = getFresnelCoefficient(incomingDirection,
                                   outgoingDirection,
