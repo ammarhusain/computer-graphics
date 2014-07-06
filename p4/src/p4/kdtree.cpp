@@ -99,7 +99,12 @@ real_t Photon::position(uint dimension)
  ---------------------------------------------------------------------- */
 std::ostream& operator<<(std::ostream &out, const Photon &p)
 {
-    return out << "Position: " << p.m_position ;
+    if (p.m_nodeFlag)
+        out << "Position: " << p.m_position ;
+    else
+        out << "Empty Node";
+
+    return out;
 }
 
 

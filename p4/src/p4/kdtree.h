@@ -32,15 +32,15 @@ struct Photon
     /// direction of incidence
     Ray m_incidentRay;
     /// flag to indicate if this Photon is a valid node
-    bool nodeFlag;
+    bool m_nodeFlag;
 
     /// default constructor
-    Photon() { nodeFlag = false; }
+    Photon() { m_nodeFlag = false; }
 
     
     /// returns number of dimensions for data point
-    static uint numberDimensions () { return 3; }
-
+    static uint numberDimensions () { /// -------------!!!!!!!!!    HACK :(   !!!!!!!!!------------- /// return 3; }
+        return 2; }
     /** ----------------------------------------------------------------------
      * static functions to compare photon positions for sorting
      * 
@@ -69,7 +69,8 @@ struct Photon
 
     real_t position(uint dimension);
 
-
+    bool isNode() { return m_nodeFlag; }
+    
     
 };
 
@@ -110,8 +111,11 @@ class KdTree
     
 
     /** ----------------------------------------------------------------------
-     * Tree Constructor
-     * 
+     * Tree Constructor: Uses an array to hold the nodes
+     * Rounds up the number of nodes passed in to the closest 2^n -1 size
+     * container. Since we control the number of photons, make sure they are
+     * close to 2^n -1 for an integer n. This optimizes the container and
+     * saves space since creating pointers can be costly
      * @author Ammar Husain <ahusain@nrec.ri.cmu.edu>
      * @date 07/03/2014 
      * @param nodes 
@@ -121,10 +125,25 @@ class KdTree
 
         std::cout << "nodes ptr: " << nodes << std::endl;
         std::cout << "nodes size: " << nodes->size() << std::endl;
-        
-        /// instantiate the nodeTree to the size of data
-        _nodeTree.resize(nodes->size());
 
+        /// compute the size of tree to instantiate
+        /// there are 2^n - 1 nodes in a tree
+        double log2_size = log2(nodes->size());
+        uint n = (unsigned int) std::ceil(log2_size);
+
+        /// check whether the nodes size was not a power of 2
+        /// in that case we have to step up one larger; ex 8 nodes
+        /// n must equal 4 to since n=3 only stores 7 nodes
+        if (fabs((double) n - log2_size) == 0.0)
+            n++;
+        
+        /// instantiate the nodeTree
+        /// _nodeTree.resize(nodes->size())
+        _nodeTree.resize(pow(2,n) - 1);
+
+
+        std::cout << "_nodeTree size: " << _nodeTree.size() << std::endl;
+        
         std::vector<Node> * allNodes =
             new std::vector<Node>(nodes->begin(), nodes->end());
 
@@ -139,8 +158,8 @@ class KdTree
         std::cout << _nodeTree << std::endl;
 
         Vector3 point;
-        point.x = 7;
-        point.y = 1;
+        point.x = 5.5;
+        point.y = 5.5;
         point.z = 0;
 
         std::vector<Node> neighbors = nearestNeighborSearch(point, 2);
@@ -211,6 +230,10 @@ class KdTree
         uint leftIndex = (2*index) + 1;
         uint rightIndex = (2*index) + 2;
         Node self = _nodeTree[index];
+
+        /// check if this index is a valid node
+        if (!self.isNode())
+            return;
         
         /// base condition: check if it is a leaf node
         if (leftIndex >= _nodeTree.size())
@@ -264,45 +287,49 @@ class KdTree
         real_t my_distance = self.euclidean_squared(point);
         candidate = std::make_pair(self, my_distance);
 
-        /// fetch the farthest photon so far
-        /// the list should always be sorted from closest to farthest
-        std::pair<Node, real_t> farthestCandidate = list[list.size()-1];
-
-        /// if there is space add yourself
-        if (list.size() < k) {
-            add_to_list(list, candidate);
-        }
-        /// check if you are closer than the farthest node
-        else if (farthestCandidate.second > my_distance) {                    
-            /// remove it and add self instead
-            list.pop_back();
-            add_to_list(list, candidate);
-        }
-
-        
-        /// if opposing side does not exist we are done
-        /// since the tree is balanced this will always be the right side
-        if (otherIndex >= _nodeTree.size())
-            return;
-        
+        /// initialize variable to stored the farthest photon so far
+        std::pair<Node, real_t> farthestCandidate;
         
         /// check if the opposite side needs to be recursed
         /// recurse the other way if: (1) there is still room, (2) distance
         /// of point to splitting plane is closer than the farthest photon
-
-        if (farthestCandidate.second >=
-            std::abs(splittingValue - point[dimension]))
-        {
-            /// make some roon
-            list.pop_back();
-        }
-        /// check if there is room
-        if (list.size() < k)
-        {
+        /// if there is space add yourself
+        if (list.size() < k) {
             /// recurse the other way
             recursiveSearch(point, k, list, dimension+1, otherIndex);
+        } else {
+            /// fetch the farthest photon 
+            /// the list should always be sorted from closest to farthest
+            farthestCandidate = list[list.size()-1];
+
+            /// check if you are closer than the farthest node
+            if (farthestCandidate.second >
+                std::abs(splittingValue - point[dimension])) {
+                /// remove it and add self instead
+                list.pop_back();
+                /// recurse the other way
+                recursiveSearch(point, k, list, dimension+1, otherIndex);
+            }
+        }
+
+        /// if there is space add yourself
+        if (list.size() < k) {
+            add_to_list(list, candidate);
+        } else {
+            /// fetch the farthest photon 
+            /// the list should always be sorted from closest to farthest
+            farthestCandidate = list[list.size()-1];
+
+            /// check if you are closer than the farthest node
+            if (farthestCandidate.second > my_distance) {                    
+                /// remove it and add self instead
+                list.pop_back();
+                add_to_list(list, candidate);
+            }
         }
         
+        
+
         
     }
     
@@ -378,6 +405,7 @@ class KdTree
         /// base condition
         if (nodes->size() == 1)
         {
+            std::cout << "hitting base" << std::endl;
             _nodeTree[index] = nodes->at(0);
             return;
         }
@@ -400,6 +428,11 @@ class KdTree
         /// destroy the input nodes to avoid stack overflow during recursion
         delete nodes;
 
+        std::cout << "left: " << leftNodes->size()
+                  << "\t right: " << rightNodes->size()
+                  << std::endl;
+        
+        
         /// create the left subtree
         recursiveTree (leftNodes, dimension + 1, (2*index)+1);
 

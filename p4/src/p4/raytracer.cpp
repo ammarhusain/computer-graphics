@@ -178,6 +178,7 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
     Photon abcd;
     std::vector<Photon> * nodes = new std::vector<Photon>;
 
+    /*
     /// (2,3)
     abcd.m_position.x = 2;
     abcd.m_position.y = 3;
@@ -207,7 +208,19 @@ bool Raytracer::raytrace(unsigned char* buffer, real_t* max_time)
     abcd.m_position.x = 7;
     abcd.m_position.y = 2;
     nodes->push_back(abcd);
+    */
 
+    for (uint i = 1; i <= 9; i++)
+    {
+        abcd.m_position.x = i;
+        abcd.m_position.y = i;
+        abcd.m_nodeFlag = true;
+        nodes->push_back(abcd);
+    }
+    
+    std::cout << "nodes size: " << nodes->size() << std::endl;
+    
+    
     KdTree<Photon> abcdefg(nodes);
 
     return 0;
